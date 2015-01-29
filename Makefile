@@ -1,30 +1,40 @@
 
 LUA_VERSION=5.2.3
+HASERL_VERSION=0.9.33
 
 CC=arm-linux-androideabi-gcc
 STRIP=arm-linux-androideabi-strip
 
-LUA=lua-$(LUA_VERSION)/src/lua
 LUA_D=lua-$(LUA_VERSION)
+LUA=$(LUA_D)/src/lua
 LUA_HD=lua-host/$(LUA_D)
-LUA_TGZ=downloads/lua-$(LUA_VERSION).tar.gz
-LUA_HOST=lua-host/lua-$(LUA_VERSION)/src/lua
+LUA_TGZ=downloads/$(LUA_D).tar.gz
+LUA_HOST=lua-host/$(LUA_D)/src/lua
 
-all: $(LUA) $(LUA_HOST)
+HASERL_D=haserl-$(HASERL_VERSION)
+HASERL=$(HASERL_D)/src/haserl
+HASERL_TGZ=downloads/$(HASERL_D).tar.gz
+HASERL_LUA2C=$(HASERL_D)/src/lua2c
+HASERL_MAKEFILE=$(HASERL_D)/Makefile
+
+export LUA_CFLAGS=-I$(PWD)/$(LUA_D)/src/
+export LUA_LIBS=-L$(PWD)/$(LUA_D)/src/ -llua -lm
+
+all: $(LUA) $(LUA_HOST) $(HASERL)
 
 all-download: $(LUA_TGZ)
 
 $(LUA): $(LUA_D)
-	@$(MAKE) -C lua-$(LUA_VERSION)/src liblua52.so LUA_A=liblua52.so \
+	@$(MAKE) -C $(LUA_D)/src liblua52.so LUA_A=liblua52.so \
 		"AR=$(CC) -Wl,-E -shared -o" RANLIB="$(STRIP)" CC="$(CC)" \
 		MYCFLAGS="'-Dgetlocaledecpoint()=46'"
-	@$(MAKE) -C lua-$(LUA_VERSION)/src all CC="$(CC)" \
+	@$(MAKE) -C $(LUA_D)/src all CC="$(CC)" \
 		MYCFLAGS="'-Dgetlocaledecpoint()=46' \
 		-DLUA_USE_POSIX -DLUA_USEDLOPEN" MYLIBS="-Wl,-E -ldl" MYLDFLAGS=-s
 	@$(STRIP) $@
 
 $(LUA_HOST): $(LUA_HD)
-	@$(MAKE) -C lua-host/lua-$(LUA_VERSION)/src liblua.a
+	@$(MAKE) -C lua-host/$(LUA_D)/src liblua.a
 
 $(LUA_HD): $(LUA_TGZ)
 	@mkdir -p lua-host
@@ -37,8 +47,32 @@ $(LUA_D): $(LUA_TGZ)
 
 $(LUA_TGZ):
 	@mkdir -p downloads
-	@wget -c http://www.lua.org/ftp/lua-$(LUA_VERSION).tar.gz -O $@.part
+	@wget -c http://www.lua.org/ftp/$(LUA_D).tar.gz -O $@.part
 	@mv $@.part $@
+
+$(HASERL): $(HASERL_LUA2C) $(HASERL_MAKEFILE)
+	@$(MAKE) -C $(HASERL_D)
+	@$(STRIP) $@
+
+$(HASERL_LUA2C): $(LUA_HOST) $(HASERL_D)
+	@gcc -o $@ $@.c -I $(PWD)/lua-host/$(LUA_D)/src \
+		-L $(PWD)/lua-host/$(LUA_D)/src -llua -lm
+
+$(HASERL_MAKEFILE): $(HASERL_D)
+	@cd $(HASERL_D) && ./configure \
+		--prefix=/usr \
+		--host=arm-linux-androideabi \
+		--with-lua=lua5.2
+
+$(HASERL_D): $(HASERL_TGZ)
+	@tar xf $<
+	@touch $@
+
+$(HASERL_TGZ):
+	@mkdir -p downloads
+	@wget -c http://sourceforge.net/projects/haserl/files/haserl-devel/$(HASERL_D).tar.gz -O $@.part
+	@mv $@.part $@
+
 
 clean:
 	@$(RM) -r $(LUA_D)
