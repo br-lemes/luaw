@@ -2,6 +2,7 @@
 android:
 	@mkdir -p host downloads $@
 	@$(MAKE) all PREFIX=$@/ \
+		TRIPLE=arm-linux-androideabi \
 		CC=arm-linux-androideabi-gcc \
 		STRIP=arm-linux-androideabi-strip
 
@@ -74,7 +75,7 @@ $(HASERL_MAKEFILE):
 	@$(MAKE) $(PREFIX)$(HASERL_D)
 	@cd $(PREFIX)$(HASERL_D) && ./configure \
 		--prefix=/usr \
-		--host=arm-linux-androideabi \
+		--host=$(TRIPLE) \
 		--with-lua=lua5.2
 
 $(PREFIX)$(HASERL_D): $(HASERL_TGZ)
