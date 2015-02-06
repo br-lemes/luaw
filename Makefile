@@ -12,7 +12,7 @@ MONGOOSE_VERSION=5.5
 SQLITE3_VERSION=3080802
 
 LUA_D=lua-$(LUA_VERSION)
-LUA=$(PREFIX)$(LUA_D)/src/lua
+LUA=$(PREFIX)$(LUA_D)/src/liblua.so
 LUA_HD=host/$(LUA_D)
 LUA_TGZ=downloads/$(LUA_D).tar.gz
 LUA_HOST=host/$(LUA_D)/src/lua
@@ -39,12 +39,9 @@ all: $(LUA) $(LUA_HOST) $(HASERL) $(MONGOOSE) $(SQLITE3)
 all-download: $(LUA_TGZ) $(HASERL_TGZ) $(MONGOOSE_TGZ) $(SQLITE3_ZIP)
 
 $(LUA): $(PREFIX)$(LUA_D)
-	@$(MAKE) -C $(PREFIX)$(LUA_D)/src liblua52.so LUA_A=liblua52.so \
-		"AR=$(CC) -Wl,-E -shared -o" RANLIB="$(STRIP)" CC="$(CC)" \
+	@$(MAKE) -C $(PREFIX)$(LUA_D)/src liblua.so LUA_A=liblua.so \
+		"AR=$(CC) -lm -Wl,-E -shared -o" RANLIB="$(STRIP)" CC="$(CC)" \
 		MYCFLAGS="'-Dgetlocaledecpoint()=46'"
-	@$(MAKE) -C $(PREFIX)$(LUA_D)/src all CC="$(CC)" \
-		MYCFLAGS="'-Dgetlocaledecpoint()=46' \
-		-DLUA_USE_POSIX -DLUA_USEDLOPEN" MYLIBS="-Wl,-E -ldl" MYLDFLAGS=-s
 	@$(STRIP) $@
 
 $(LUA_HOST): $(LUA_HD)
