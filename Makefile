@@ -1,10 +1,13 @@
-
 android:
 	@mkdir -p host downloads $@
 	@$(MAKE) all PREFIX=$@/ \
 		TRIPLE=arm-linux-androideabi \
 		CC=arm-linux-androideabi-gcc \
 		STRIP=arm-linux-androideabi-strip
+
+native:
+	@mkdir -p downloads $@
+	@$(MAKE) all PREFIX=$@/ CC=gcc STRIP=strip
 
 LUA_VERSION=5.2.3
 HASERL_VERSION=0.9.33
@@ -33,19 +36,24 @@ SQLITE3_ZIP=downloads/$(SQLITE3_D).zip
 
 export LUA_CFLAGS=-I$(PWD)/$(PREFIX)$(LUA_D)/src/
 export LUA_LIBS=-L$(PWD)/$(PREFIX)$(LUA_D)/src/ -llua -lm
+export LD_LIBRARY_PATH=$(PWD)/$(PREFIX)$(LUA_D)/src/
 
-all: $(LUA) $(LUA_HOST) $(HASERL) $(MONGOOSE) $(SQLITE3)
+all: $(LUA) $(LUA_HOST) $(HASERL) $(MONGOOSE) $(SQLITE3) $(PREFIX)bin
 
 all-download: $(LUA_TGZ) $(HASERL_TGZ) $(MONGOOSE_TGZ) $(SQLITE3_ZIP)
 
 $(LUA): $(PREFIX)$(LUA_D)
 	@$(MAKE) -C $(PREFIX)$(LUA_D)/src liblua.so LUA_A=liblua.so \
 		"AR=$(CC) -lm -Wl,-E -shared -o" RANLIB="$(STRIP)" CC="$(CC)" \
-		MYCFLAGS="'-Dgetlocaledecpoint()=46'"
+		MYCFLAGS="-fPIC '-Dgetlocaledecpoint()=46'"
 	@$(STRIP) $@
 
-$(LUA_HOST): $(LUA_HD)
-	@$(MAKE) -C host/$(LUA_D)/src liblua.a CC=gcc
+$(LUA_HOST):
+	@true
+ifneq ($(PREFIX),native/)
+	@$(MAKE) $(LUA_HD)
+	@$(MAKE) -C host/$(LUA_D)/src liblua.a CC="gcc -m32"
+endif
 
 $(LUA_HD): $(LUA_TGZ)
 	@tar xf $< -C host
@@ -64,16 +72,19 @@ $(HASERL): $(HASERL_LUA2C) $(HASERL_MAKEFILE)
 	@$(STRIP) $@
 
 $(HASERL_LUA2C): $(LUA_HOST)
+	@true
+ifneq ($(PREFIX),native/)
 	@$(MAKE) $(PREFIX)$(HASERL_D)
-	@gcc -o $@ $@.c -I $(PWD)/host/$(LUA_D)/src \
+	@gcc -m32 -o $@ $@.c -I $(PWD)/host/$(LUA_D)/src \
 		-L $(PWD)/host/$(LUA_D)/src -llua -lm
+endif
 
 $(HASERL_MAKEFILE):
 	@$(MAKE) $(PREFIX)$(HASERL_D)
 	@cd $(PREFIX)$(HASERL_D) && ./configure \
-		--prefix=/usr \
 		--host=$(TRIPLE) \
-		--with-lua=lua5.2
+		--enable-subshell=lua \
+		--with-lua
 
 $(PREFIX)$(HASERL_D): $(HASERL_TGZ)
 	@tar xf $< -C $(PREFIX)
@@ -85,7 +96,7 @@ $(HASERL_TGZ):
 
 $(MONGOOSE):
 	@$(MAKE) $(PREFIX)$(MONGOOSE_D)
-	@$(CC) -O2 -o $@ \
+	@$(CC) -pthread -O2 -o $@ \
 		$(PREFIX)$(MONGOOSE_D)/examples/web_server/web_server.c \
 		$(PREFIX)$(MONGOOSE_D)/mongoose.c -I$(PREFIX)$(MONGOOSE_D)
 	@$(STRIP) $@
@@ -110,10 +121,21 @@ $(SQLITE3_ZIP):
 	@wget -c http://www.sqlite.org/2015/$(SQLITE3_D).zip -O $@.part
 	@mv $@.part $@
 
-clean:
-	@$(RM) -r host android
+$(PREFIX)bin:
+	@mkdir -p $@
+	@cp $(LUA) $(HASERL) $(MONGOOSE) $@
+ifeq ($(PREFIX),android/)
+	@sed s-bin/sh-system/bin/sh- luaw.sh > $@/luaw
+else
+	@cp luaw.sh $@/luaw
+endif
+	@chmod +x $@/luaw
+	@ln -sf ../../www $@
 
-clean-downloads: clean
+clean:
+	@$(RM) -r android host native
+
+clean-download: clean
 	@$(RM) -r downloads
 
-.PHONY: android
+.PHONY: android all all-download $(PREFIX)bin clean clean-download native
