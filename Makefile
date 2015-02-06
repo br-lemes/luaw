@@ -116,7 +116,7 @@ $(SQLITE3_ZIP):
 	@mv $@.part $@
 
 clean:
-	@$(RM) -r $(LUA_D) $(LUA_HD) $(HASERL_D) $(BUSYBX_D)
+	@$(RM) -r $(LUA_D) $(LUA_HD) $(HASERL_D) $(BUSYBOX_D) $(SQLITE3_D)
 
 clean-downloads: clean
 	@$(RM) -r downloads
