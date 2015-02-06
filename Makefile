@@ -2,6 +2,7 @@
 LUA_VERSION=5.2.3
 HASERL_VERSION=0.9.33
 BUSYBOX_VERSION=1.23.1
+SQLITE3_VERSION=3080802
 
 CC=arm-linux-androideabi-gcc
 STRIP=arm-linux-androideabi-strip
@@ -23,12 +24,16 @@ BUSYBOX=$(BUSYBOX_D)/busybox
 BUSYBOX_TGZ=downloads/$(BUSYBOX_D).tar.bz2
 BUSYBOX_CONFIG=$(BUSYBOX_D)/.config
 
+SQLITE3_D=sqlite-amalgamation-$(SQLITE3_VERSION)
+SQLITE3=$(SQLITE3_D)/sqlite3.o
+SQLITE3_ZIP=downloads/$(SQLITE3_D).zip
+
 export LUA_CFLAGS=-I$(PWD)/$(LUA_D)/src/
 export LUA_LIBS=-L$(PWD)/$(LUA_D)/src/ -llua -lm
 
-all: $(LUA) $(LUA_HOST) $(HASERL) $(BUSYBOX)
+all: $(LUA) $(LUA_HOST) $(HASERL) $(BUSYBOX) $(SQLITE3)
 
-all-download: $(LUA_TGZ) $(HASERL_TGZ) $(BUSYBOX_TGZ)
+all-download: $(LUA_TGZ) $(HASERL_TGZ) $(BUSYBOX_TGZ) $(SQLITE3_ZIP)
 
 $(LUA): $(LUA_D)
 	@$(MAKE) -C $(LUA_D)/src liblua52.so LUA_A=liblua52.so \
@@ -95,6 +100,19 @@ $(BUSYBOX_D): $(BUSYBOX_TGZ)
 $(BUSYBOX_TGZ):
 	@mkdir -p downloads
 	@wget -c http://busybox.net/downloads/$(BUSYBOX_D).tar.bz2 -O $@.part
+	@mv $@.part $@
+
+$(SQLITE3):
+	@$(MAKE) $(SQLITE3_D)
+	@cd $(SQLITE3_D) && $(CC) -O2 -c sqlite3.c
+
+$(SQLITE3_D): $(SQLITE3_ZIP)
+	@unzip $<
+	@touch $@
+
+$(SQLITE3_ZIP):
+	@mkdir -p downloads
+	@wget -c http://www.sqlite.org/2015/$(SQLITE3_D).zip -O $@.part
 	@mv $@.part $@
 
 clean:
