@@ -1,18 +1,23 @@
 android:
 	@mkdir -p host downloads $@
 	@$(MAKE) all PREFIX=$@/ \
+		SYSCFLAGS="-fPIC '-Dgetlocaledecpoint()=46' -DLUA_USE_POSIX -DLUA_USE_DLOPEN" \
+		SYSLIBS="-Wl,-E -ldl -lm" \
 		TRIPLE=arm-linux-androideabi \
 		CC=arm-linux-androideabi-gcc \
 		STRIP=arm-linux-androideabi-strip
 
 native:
 	@mkdir -p downloads $@
-	@$(MAKE) all PREFIX=$@/ CC=gcc STRIP=strip
+	@$(MAKE) all PREFIX=$@/ CC=gcc STRIP=strip \
+		SYSCFLAGS="-fPIC '-Dgetlocaledecpoint()=46' -DLUA_USE_POSIX -DLUA_USE_DLOPEN" \
+		SYSLIBS="-Wl,-E -ldl -lm"
 
 LUA_VERSION=5.2.3
 HASERL_VERSION=0.9.33
 MONGOOSE_VERSION=5.5
 SQLITE3_VERSION=3080802
+LUASQL_VERSION=2.3.0
 
 LUA_D=lua-$(LUA_VERSION)
 LUA=$(PREFIX)$(LUA_D)/src/liblua.so
@@ -34,25 +39,28 @@ SQLITE3_D=sqlite-amalgamation-$(SQLITE3_VERSION)
 SQLITE3=$(PREFIX)$(SQLITE3_D)/sqlite3.o
 SQLITE3_ZIP=downloads/$(SQLITE3_D).zip
 
+LUASQL_D=luasql-$(LUASQL_VERSION)
+LUASQL=$(PREFIX)$(LUASQL_D)/src/sqlite3.so
+LUASQL_TGZ=downloads/$(LUASQL_D).tar.gz
+
 export LUA_CFLAGS=-I$(PWD)/$(PREFIX)$(LUA_D)/src/
-export LUA_LIBS=-L$(PWD)/$(PREFIX)$(LUA_D)/src/ -llua -lm
+export LUA_LIBS=-L$(PWD)/$(PREFIX)$(LUA_D)/src/ -llua -lm -ldl
 export LD_LIBRARY_PATH=$(PWD)/$(PREFIX)$(LUA_D)/src/
 
-all: $(LUA) $(LUA_HOST) $(HASERL) $(MONGOOSE) $(SQLITE3) $(PREFIX)bin
+all: $(LUA) $(LUA_HOST) $(HASERL) $(MONGOOSE) $(SQLITE3) $(LUASQL) $(PREFIX)bin
 
-all-download: $(LUA_TGZ) $(HASERL_TGZ) $(MONGOOSE_TGZ) $(SQLITE3_ZIP)
+all-download: $(LUA_TGZ) $(HASERL_TGZ) $(MONGOOSE_TGZ) $(SQLITE3_ZIP) $(LUASQL_TGZ)
 
 $(LUA): $(PREFIX)$(LUA_D)
 	@$(MAKE) -C $(PREFIX)$(LUA_D)/src liblua.so LUA_A=liblua.so \
-		"AR=$(CC) -lm -Wl,-E -shared -o" RANLIB="$(STRIP)" CC="$(CC)" \
-		MYCFLAGS="-fPIC '-Dgetlocaledecpoint()=46'"
+		"AR=$(CC) $(SYSLIBS) -shared -o" RANLIB="$(STRIP)" CC="$(CC)"
 	@$(STRIP) $@
 
 $(LUA_HOST):
 	@true
 ifneq ($(PREFIX),native/)
 	@$(MAKE) $(LUA_HD)
-	@$(MAKE) -C host/$(LUA_D)/src liblua.a CC="gcc -m32"
+	@$(MAKE) -C host/$(LUA_D)/src liblua.a CC="gcc -m32" SYSLIBS="" SYSCFLAGS=""
 endif
 
 $(LUA_HD): $(LUA_TGZ)
@@ -75,7 +83,7 @@ $(HASERL_LUA2C): $(LUA_HOST)
 	@true
 ifneq ($(PREFIX),native/)
 	@$(MAKE) $(PREFIX)$(HASERL_D)
-	@gcc -m32 -o $@ $@.c -I $(PWD)/host/$(LUA_D)/src \
+	gcc -m32 -o $@ $@.c -I $(PWD)/host/$(LUA_D)/src \
 		-L $(PWD)/host/$(LUA_D)/src -llua -lm
 endif
 
@@ -111,7 +119,8 @@ $(MONGOOSE_TGZ):
 
 $(SQLITE3):
 	@$(MAKE) $(PREFIX)$(SQLITE3_D)
-	@cd $(PREFIX)$(SQLITE3_D) && $(CC) -O2 -c sqlite3.c
+	@cd $(PREFIX)$(SQLITE3_D) && \
+		$(CC) -O2 -fPIC -c sqlite3.c
 
 $(PREFIX)$(SQLITE3_D): $(SQLITE3_ZIP)
 	@cd $(PREFIX) && unzip ../$<
@@ -121,9 +130,26 @@ $(SQLITE3_ZIP):
 	@wget -c http://www.sqlite.org/2015/$(SQLITE3_D).zip -O $@.part
 	@mv $@.part $@
 
+$(LUASQL):
+	@$(MAKE) $(PREFIX)$(LUASQL_D)
+	cd $(PREFIX)$(LUASQL_D)/src && $(CC) -pthread -O2 -fPIC -shared \
+		-o $(PWD)/$(LUASQL) \
+		-I $(PWD)/$(PREFIX)$(LUA_D)/src -I $(PWD)/$(PREFIX)$(SQLITE3_D) \
+		-L $(PWD)/$(PREFIX)$(LUA_D)/src -llua \
+		$(PWD)/$(PREFIX)$(SQLITE3_D)/sqlite3.o luasql.c ls_sqlite3.c
+
+$(PREFIX)$(LUASQL_D): $(LUASQL_TGZ)
+	@tar xf $< -C $(PREFIX)
+	@touch $@
+
+$(LUASQL_TGZ):
+	@wget -c https://github.com/keplerproject/luasql/archive/v$(LUASQL_VERSION).tar.gz -O $@.part
+	@mv $@.part $@
+
 $(PREFIX)bin:
-	@mkdir -p $@
+	@mkdir -p $@/luasql
 	@cp $(LUA) $(HASERL) $(MONGOOSE) $@
+	@cp $(LUASQL) $@/luasql
 ifeq ($(PREFIX),android/)
 	@sed s-bin/sh-system/bin/sh- luaw.sh > $@/luaw
 else
@@ -133,7 +159,7 @@ endif
 	@ln -sf ../../www $@
 
 clean:
-	@$(RM) -r android host native
+	@$(RM) -r android downloads/*.part host native
 
 clean-download: clean
 	@$(RM) -r downloads
