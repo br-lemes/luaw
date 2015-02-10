@@ -18,6 +18,7 @@ HASERL_VERSION=0.9.33
 MONGOOSE_VERSION=5.5
 SQLITE3_VERSION=3080802
 LUASQL_VERSION=2.3.0
+LFS_VERSION=1_6_3
 
 LUA_D=lua-$(LUA_VERSION)
 LUA=$(PREFIX)$(LUA_D)/src/liblua.so
@@ -43,13 +44,17 @@ LUASQL_D=luasql-$(LUASQL_VERSION)
 LUASQL=$(PREFIX)$(LUASQL_D)/src/sqlite3.so
 LUASQL_TGZ=downloads/$(LUASQL_D).tar.gz
 
+LFS_D=luafilesystem-v_$(LFS_VERSION)
+LFS=$(PREFIX)$(LFS_D)/src/lfs.so
+LFS_TGZ=downloads/$(LFS_D).tar.gz
+
 export LUA_CFLAGS=-I$(PWD)/$(PREFIX)$(LUA_D)/src/
 export LUA_LIBS=-L$(PWD)/$(PREFIX)$(LUA_D)/src/ -llua -lm -ldl
 export LD_LIBRARY_PATH=$(PWD)/$(PREFIX)$(LUA_D)/src/
 
-all: $(LUA) $(LUA_HOST) $(HASERL) $(MONGOOSE) $(SQLITE3) $(LUASQL) $(PREFIX)bin
+all: $(LUA) $(LUA_HOST) $(HASERL) $(MONGOOSE) $(SQLITE3) $(LUASQL) $(LFS) $(PREFIX)bin
 
-all-download: $(LUA_TGZ) $(HASERL_TGZ) $(MONGOOSE_TGZ) $(SQLITE3_ZIP) $(LUASQL_TGZ)
+all-download: $(LUA_TGZ) $(HASERL_TGZ) $(MONGOOSE_TGZ) $(SQLITE3_ZIP) $(LUASQL_TGZ) $(LFS_TGZ)
 
 $(LUA): $(PREFIX)$(LUA_D)
 	@$(MAKE) -C $(PREFIX)$(LUA_D)/src liblua.so LUA_A=liblua.so \
@@ -83,7 +88,7 @@ $(HASERL_LUA2C): $(LUA_HOST)
 	@true
 ifneq ($(PREFIX),native/)
 	@$(MAKE) $(PREFIX)$(HASERL_D)
-	gcc -m32 -o $@ $@.c -I $(PWD)/host/$(LUA_D)/src \
+	@gcc -m32 -o $@ $@.c -I $(PWD)/host/$(LUA_D)/src \
 		-L $(PWD)/host/$(LUA_D)/src -llua -lm
 endif
 
@@ -132,11 +137,11 @@ $(SQLITE3_ZIP):
 
 $(LUASQL):
 	@$(MAKE) $(PREFIX)$(LUASQL_D)
-	cd $(PREFIX)$(LUASQL_D)/src && $(CC) -pthread -O2 -fPIC -shared \
-		-o $(PWD)/$(LUASQL) \
-		-I $(PWD)/$(PREFIX)$(LUA_D)/src -I $(PWD)/$(PREFIX)$(SQLITE3_D) \
-		-L $(PWD)/$(PREFIX)$(LUA_D)/src -llua \
+	@cd $(PREFIX)$(LUASQL_D)/src && $(CC) -pthread -O2 -fPIC -shared \
+		-o $(PWD)/$@ $(LUA_CFLAGS) $(LUA_LIBS) \
+		-I $(PWD)/$(PREFIX)$(SQLITE3_D) \
 		$(PWD)/$(PREFIX)$(SQLITE3_D)/sqlite3.o luasql.c ls_sqlite3.c
+	@$(STRIP) $@
 
 $(PREFIX)$(LUASQL_D): $(LUASQL_TGZ)
 	@tar xf $< -C $(PREFIX)
@@ -146,9 +151,23 @@ $(LUASQL_TGZ):
 	@wget -c https://github.com/keplerproject/luasql/archive/v$(LUASQL_VERSION).tar.gz -O $@.part
 	@mv $@.part $@
 
+$(LFS):
+	@$(MAKE) $(PREFIX)$(LFS_D)
+	cd $(PREFIX)$(LFS_D)/src && $(CC) -O2 -fPIC -shared \
+		-o $(PWD)/$@ $(LUA_CFLAGS) $(LUA_LIBS) lfs.c
+	@$(STRIP) $@
+
+$(PREFIX)$(LFS_D): $(LFS_TGZ)
+	@tar xf $< -C $(PREFIX)
+	@touch $@
+
+$(LFS_TGZ):
+	@wget -c https://github.com/keplerproject/luafilesystem/archive/v_$(LFS_VERSION).tar.gz -O $@.part
+	@mv $@.part $@
+
 $(PREFIX)bin:
 	@mkdir -p $@/luasql
-	@cp $(LUA) $(HASERL) $(MONGOOSE) $@
+	@cp $(LUA) $(HASERL) $(MONGOOSE) $(LFS) $@
 	@cp $(LUASQL) $@/luasql
 ifeq ($(PREFIX),android/)
 	@sed s-bin/sh-system/bin/sh- luaw.sh > $@/luaw
