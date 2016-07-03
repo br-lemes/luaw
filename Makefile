@@ -184,4 +184,7 @@ clean:
 clean-download: clean
 	@$(RM) -r downloads
 
-.PHONY: android all all-download $(PREFIX)bin clean clean-download native
+serve: native
+	@cd native/bin && ./luaw
+
+.PHONY: android all all-download $(PREFIX)bin clean clean-download native serve
