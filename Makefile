@@ -16,8 +16,9 @@ native:
 LUA_VERSION=5.2.4
 HASERL_VERSION=0.9.35
 MONGOOSE_VERSION=5.6
-SQLITE3_VERSION=3081101
-LUASQL_VERSION=2.3.0
+SQLITE3_VERSION=3130000
+SQLITE3_YEAR=2016
+LUASQL_VERSION=2.3.2
 LFS_VERSION=1_6_3
 
 LUA_D=lua-$(LUA_VERSION)
@@ -132,7 +133,7 @@ $(PREFIX)$(SQLITE3_D): $(SQLITE3_ZIP)
 	@touch $@
 
 $(SQLITE3_ZIP):
-	@wget -c http://www.sqlite.org/2015/$(SQLITE3_D).zip -O $@.part
+	@wget -c http://www.sqlite.org/$(SQLITE3_YEAR)/$(SQLITE3_D).zip -O $@.part
 	@mv $@.part $@
 
 $(LUASQL):
