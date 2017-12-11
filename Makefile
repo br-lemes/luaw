@@ -4,7 +4,7 @@ android:
 		SYSCFLAGS="-fPIC '-Dgetlocaledecpoint()=46' -DLUA_USE_POSIX -DLUA_USE_DLOPEN" \
 		SYSLIBS="-Wl,-E -ldl -lm" \
 		TRIPLE=arm-linux-androideabi \
-		CC=arm-linux-androideabi-gcc \
+		CC=arm-linux-androideabi-clang \
 		STRIP=arm-linux-androideabi-strip
 
 native:
@@ -16,10 +16,10 @@ native:
 LUA_VERSION=5.2.4
 HASERL_VERSION=0.9.35
 MONGOOSE_VERSION=5.6
-SQLITE3_VERSION=3130000
-SQLITE3_YEAR=2016
-LUASQL_VERSION=2.3.2
-LFS_VERSION=1_6_3
+SQLITE3_VERSION=3210000
+SQLITE3_YEAR=2017
+LUASQL_VERSION=2.3.5
+LFS_VERSION=1_7_0_2
 
 LUA_D=lua-$(LUA_VERSION)
 LUA=$(PREFIX)$(LUA_D)/src/liblua.so
@@ -45,7 +45,7 @@ LUASQL_D=luasql-$(LUASQL_VERSION)
 LUASQL=$(PREFIX)$(LUASQL_D)/src/sqlite3.so
 LUASQL_TGZ=downloads/$(LUASQL_D).tar.gz
 
-LFS_D=luafilesystem-v_$(LFS_VERSION)
+LFS_D=luafilesystem-$(LFS_VERSION)
 LFS=$(PREFIX)$(LFS_D)/src/lfs.so
 LFS_TGZ=downloads/$(LFS_D).tar.gz
 
@@ -98,7 +98,7 @@ $(HASERL_MAKEFILE):
 	@cd $(PREFIX)$(HASERL_D) && ./configure \
 		--host=$(TRIPLE) \
 		--enable-subshell=lua \
-		--with-lua
+		--with-lua CFLAGS="-fPIE" LDFLAGS="-fPIE -pie"
 
 $(PREFIX)$(HASERL_D): $(HASERL_TGZ)
 	@tar xf $< -C $(PREFIX)
@@ -110,7 +110,7 @@ $(HASERL_TGZ):
 
 $(MONGOOSE):
 	@$(MAKE) $(PREFIX)$(MONGOOSE_D)
-	@$(CC) -pthread -O2 -o $@ \
+	@$(CC) -fPIE -pie -pthread -O2 -o $@ \
 		$(PREFIX)$(MONGOOSE_D)/examples/web_server/web_server.c \
 		$(PREFIX)$(MONGOOSE_D)/mongoose.c -I$(PREFIX)$(MONGOOSE_D)
 	@$(STRIP) $@
@@ -163,7 +163,7 @@ $(PREFIX)$(LFS_D): $(LFS_TGZ)
 	@touch $@
 
 $(LFS_TGZ):
-	@wget -c https://github.com/keplerproject/luafilesystem/archive/v_$(LFS_VERSION).tar.gz -O $@.part
+	@wget -c https://github.com/keplerproject/luafilesystem/archive/v$(LFS_VERSION).tar.gz -O $@.part
 	@mv $@.part $@
 
 $(PREFIX)bin:
