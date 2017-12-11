@@ -1,9 +1,10 @@
 #!/bin/sh
 
-export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$PWD"
-./mongoose \
-	-cgi_interpreter  "$PWD/haserl" \
-	-cgi_pattern      "$PWD/www/**.lua" \
-	-document_root    "$PWD/www" \
+DIR=$(dirname $0)
+export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$DIR"
+$DIR/mongoose \
+	-cgi_interpreter  "$DIR/haserl" \
+	-cgi_pattern      "$DIR/www/**.lua" \
+	-document_root    "$DIR/www" \
 	-index_files      index.html,index.lua \
-	-listening_port   8181
+	-listening_port   8080
