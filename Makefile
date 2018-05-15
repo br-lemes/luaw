@@ -110,6 +110,7 @@ $(HASERL_TGZ):
 
 $(MONGOOSE):
 	@$(MAKE) $(PREFIX)$(MONGOOSE_D)
+	@patch $(PREFIX)$(MONGOOSE_D)/mongoose.c mongoose.patch
 	@$(CC) -fPIE -pie -pthread -O2 -o $@ \
 		$(PREFIX)$(MONGOOSE_D)/examples/web_server/web_server.c \
 		$(PREFIX)$(MONGOOSE_D)/mongoose.c -I$(PREFIX)$(MONGOOSE_D)

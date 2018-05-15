@@ -1,0 +1,15 @@
+--- a/mongoose.c	2015-03-18 13:25:46.000000000 -0400
++++ b/mongoose.c	2018-05-14 22:57:07.768655274 -0400
+@@ -2189,6 +2189,12 @@
+   blk->len = blk->nvars = 0;
+   blk->conn = ri;
+
++  if ((s = getenv("ANDROID_DATA")) != NULL) {
++    addenv(blk, "ANDROID_DATA=%s", s);
++  }
++  if ((s = getenv("ANDROID_ROOT")) != NULL) {
++    addenv(blk, "ANDROID_ROOT=%s", s);
++  }
+   if ((s = getenv("SERVER_NAME")) != NULL) {
+     addenv(blk, "SERVER_NAME=%s", s);
+   } else {
